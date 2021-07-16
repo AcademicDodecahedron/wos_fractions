@@ -21,7 +21,7 @@ class NameVariants:
     def from_file(path: Path):
         with path.open('r', encoding='utf-8-sig') as file:
             lines = file.readlines()
-            lines = map(lambda x: x.removesuffix('\n'), lines)
+            lines = map(lambda x: x.rstrip(), lines)
             return NameVariants(list(lines))
 
 ##

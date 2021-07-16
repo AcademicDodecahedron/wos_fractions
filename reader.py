@@ -9,7 +9,7 @@ def read(path: Path):
         record = {}
 
         for line in file:
-            line = line.removesuffix('\n')
+            line = line.rstrip()
             if line.startswith(' '):
                 # Продолжение поля на новой строке
                 current_value.append(line.lstrip())
