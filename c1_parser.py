@@ -1,19 +1,33 @@
 import re
 
+##
+
+def add_aff_to_dict(authors: str, uni, c1_dict):
+    for author in set(authors.split('; ')):
+        if author in c1_dict:
+            c1_dict[author].append(uni)
+        else:
+            c1_dict[author] = [uni]
+
+##
+
 C1_REGEX = re.compile(r'^\[(.+)\] (.+)')
 def parse(lines):
     c1_dict = {}
+    current_authors = None
+    current_uni = ''
+
     for line in lines:
-        match = C1_REGEX.match(line)
-        if match is None:
-            print(f"Unexpected line in C1: {line}")
+        if line.startswith('['):
+            if current_authors != None:
+                add_aff_to_dict(current_authors, current_uni, c1_dict)
 
-        authors = match.group(1)
-        uni = match.group(2)
+            match = C1_REGEX.match(line)
+            current_authors = match.group(1)
+            current_uni = match.group(2)
+        else:
+            current_uni = ' '.join([current_uni, line])
 
-        for author in authors.split('; '):
-            if author in c1_dict:
-                c1_dict[author].append(uni)
-            else:
-                c1_dict[author] = [uni]
+    if current_authors != None:
+        add_aff_to_dict(current_authors, current_uni, c1_dict)
     return c1_dict
