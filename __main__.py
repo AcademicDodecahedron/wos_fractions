@@ -43,7 +43,7 @@ for ahci_file in args.ahci_folder.iterdir():
 for ut in ut_set:
     sel_criteria.append([ut, 'Q1 Q2 AHCI'])
 
-# варианты названий
+# <-name_variant
 name_dict = NameVariantsDict(NameVariants.from_file(args.name_variants))
 
 # <-основная папка
@@ -67,6 +67,7 @@ for main_file in args.main_folder.iterdir():
                 main_uni_name = name_dict.find_and_remember(c1_uni)
                 fractions.append([ut, af, af_len, c1_unis_len, c1_uni, main_uni_name]) # ->фракции
 
+#->Варианты названий
 for aff, uni in name_dict.get_items():
     name_variants_sheet.append([aff, uni])
 
