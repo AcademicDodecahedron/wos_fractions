@@ -19,7 +19,7 @@ class NameVariants:
 
     @staticmethod
     def from_file(path: Path):
-        with path.open() as file:
+        with path.open('r', encoding='utf-8-sig') as file:
             lines = file.readlines()
             lines = map(lambda x: x.removesuffix('\n'), lines)
             return NameVariants(list(lines))
