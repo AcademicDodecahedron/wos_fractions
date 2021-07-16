@@ -9,10 +9,10 @@ from name_variant import NameVariants, NameVariantsDict
 
 def parse_args():
     argp = ArgumentParser()
-    argp.add_argument('main_folder', type=Path)
-    argp.add_argument('ahci_folder', type=Path)
-    argp.add_argument('name_variants', type=Path)
-    argp.add_argument('-o', '--output', default='out.xlsx')
+    argp.add_argument('main_folder', type=Path, help='Example: RIS/')
+    argp.add_argument('ahci_folder', type=Path, help='Example: RIS_AHCI/')
+    argp.add_argument('name_variants', type=Path, help='Example name_variant.txt')
+    argp.add_argument('-o', '--output', default='out.xlsx', help='Output .xlsx file')
     return argp.parse_args()
 args = parse_args()
 
