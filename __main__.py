@@ -1,82 +1,89 @@
 from argparse import ArgumentParser
 from pathlib import Path
-from openpyxl import Workbook
+import openpyxl
 from openpyxl.worksheet.table import Table
 from openpyxl.utils import get_column_letter
+from collections import defaultdict
 import reader
 import c1_parser
 from name_variant import NameVariants, NameVariantsDict
+import csv_utils
 
 def parse_args():
     argp = ArgumentParser()
-    argp.add_argument('main_folder', type=Path, help='Example: RIS/')
-    argp.add_argument('ahci_folder', type=Path, help='Example: RIS_AHCI/')
-    argp.add_argument('name_variants', type=Path, help='Example name_variant.txt')
+    argp.add_argument('template', type=Path, help='.xlsx template file')
+    argp.add_argument('--ris', type=Path, help='RIS folder')
+    argp.add_argument('--ris_ahci', type=Path, help='RIS_AHCI folder')
+    argp.add_argument('--wsd', type=Path, help='Web of Science Documents.csv')
+    argp.add_argument('--wsd_q1', type=Path, help='Web of Science DocumentsQ1.csv')
+    argp.add_argument('--wsd_q2', type=Path, help='Web of Science DocumentsQ2.csv')
+    argp.add_argument('--name_variants', type=Path, help='name_variant.txt file')
     argp.add_argument('-o', '--output', default='out.xlsx', help='Output .xlsx file')
     return argp.parse_args()
 args = parse_args()
 
-# xslx страницы
-wb = Workbook()
-sel_criteria = wb.active
-sel_criteria.title = 'критерийотбора'
-sel_criteria.append(['UT', 'критерийотбора'])
-
-publications = wb.create_sheet('публикации')
-publications.append(['UT', 'Document Type', 'Document Source'])
-
-fractions = wb.create_sheet('фракции')
-fractions.append(['UT', 'au', 'count_au', 'count_au_aff', 'aff', 'org'])
-
-name_variants_sheet = wb.create_sheet('Варианты названий университета')
-name_variants_sheet.append(['aff', 'org'])
+wb = openpyxl.load_workbook(args.template)
+sel_criteria = wb['критерийотбора']
+publications = wb['публикации']
+fractions = wb['фракции']
+name_variants_sheet = wb['Варианты названий университета']
 
 # <-уникальные UT изи папки AHCI
-ut_set = set()
-for ahci_file in args.ahci_folder.iterdir():
-    print(f"Reading {ahci_file}")
-    for record in reader.read(ahci_file):
-        ut = record['UT'][0]
-        ut_set.add(ut)
+class UtSource:
+    def __init__(self):
+        self.ris = False
+        self.ris_ahci = False
+        self.wsd = False
+        self.wsd_q1 = False
+        self.wsd_q2 = False
+
+ut_sources = defaultdict(UtSource)
+if args.ris_ahci is not None:
+    for ahci_file in args.ris_ahci.iterdir():
+        print('Reading ', ahci_file)
+        for record in reader.read(ahci_file):
+            ut = record['UT'][0]
+            ut_sources[ut].ris_ahci = True
+
+if args.ris is not None:
+    for ris_file in args.ris.iterdir():
+        print('Reading ', ris_file)
+        for record in reader.read(ris_file):
+            ut = record['UT'][0]
+            ut_sources[ut].ris = True
+
+if args.wsd is not None:
+    print('Reading ', args.wsd)
+    for row in csv_utils.read_csv_body(args.wsd):
+        ut = row['Accession Number']
+        ut_sources[ut].wsd = True
+
+if args.wsd_q1 is not None:
+    print('Reading ', args.wsd_q1)
+    for row in csv_utils.read_csv_body(args.wsd_q1):
+        ut = row['Accession Number']
+        ut_sources[ut].wsd_q1 = True
+
+if args.wsd_q2 is not None:
+    print('Reading ', args.wsd_q2)
+    for row in csv_utils.read_csv_body(args.wsd_q2):
+        ut = row['Accession Number']
+        ut_sources[ut].wsd_q2 = True
 
 # ->критерии отбора
-for ut in ut_set:
-    sel_criteria.append([ut, 'Q1 Q2 AHCI'])
+for ut, sources in ut_sources.items():
+    sel_criteria.append([
+        ut,
+        'RIS' if sources.ris else None,
+        'RIS_AHCI' if sources.ris_ahci else None,
+        'WSD' if sources.wsd else None,
+        'WSD_Q1' if sources.wsd_q1 else None,
+        'WSD_Q2' if sources.wsd_q2 else None
+    ])
 
-# <-name_variant
-name_dict = NameVariantsDict(NameVariants.from_file(args.name_variants))
+def update_table(sheet, name):
+    table = sheet.tables[name]
+    table.ref = "A1:" + get_column_letter(sheet.max_column) + str(sheet.max_row)
 
-# <-основная папка
-for main_file in args.main_folder.iterdir():
-    print(f"Reading {main_file}")
-    for record in reader.read(main_file):
-        ut = record['UT'][0]
-        dt = record['DT'][0]
-        pt = record['PT'][0]
-        publications.append([ut, dt, pt]) # ->публикации
-
-        af_list = record['AF']
-        af_len = len(af_list)
-        c1_dict = c1_parser.parse(record['C1'])
-
-        for af in af_list: # каждый автор из AF
-            c1_affiliated_unis = c1_dict.get(af, [])
-            c1_unis_len = len(c1_affiliated_unis)
-
-            for c1_uni in c1_affiliated_unis: # каждый университет из C1, связанный с автором
-                main_uni_name = name_dict.find_and_remember(c1_uni)
-                fractions.append([ut, af, af_len, c1_unis_len, c1_uni, main_uni_name]) # ->фракции
-
-#->Варианты названий
-for aff, uni in name_dict.get_items():
-    name_variants_sheet.append([aff, uni])
-
-def make_table(sheet, name):
-    table = Table(displayName=name, ref="A1:" + get_column_letter(sheet.max_column) + str(sheet.max_row))
-    sheet.add_table(table)
-
-make_table(sel_criteria, 'критерий_отбора')
-make_table(publications, 'публикации')
-make_table(fractions, 'фракции')
-make_table(name_variants_sheet, 'варианты_названий_университета')
-wb.save(filename=args.output)
+update_table(sel_criteria, 'критерий_отбора')
+wb.save(args.output)
