@@ -17,6 +17,8 @@ def parse_args():
     argp.add_argument('--wsd', type=Path, help='Web of Science Documents.csv')
     argp.add_argument('--wsd_q1', type=Path, help='Web of Science DocumentsQ1.csv')
     argp.add_argument('--wsd_q2', type=Path, help='Web of Science DocumentsQ2.csv')
+    argp.add_argument('--wsd_q3', type=Path, help='Web of Science DocumentsQ3.csv')
+    argp.add_argument('--wsd_q4', type=Path, help='Web of Science DocumentsQ4.csv')
     argp.add_argument('--name_variants', type=Path, help='name_variant.txt file')
     argp.add_argument('-o', '--output', default='out.xlsx', help='Output .xlsx file')
     return argp.parse_args()
@@ -36,6 +38,8 @@ class UtSource:
         self.wsd = False
         self.wsd_q1 = False
         self.wsd_q2 = False
+        self.wsd_q3 = False
+        self.wsd_q4 = False
 
 ut_sources = defaultdict(UtSource)
 if args.ris_ahci is not None:
@@ -52,33 +56,57 @@ if args.ris is not None:
             ut = record['UT'][0]
             ut_sources[ut].ris = True
 
-if args.wsd is not None:
-    print('Reading ', args.wsd)
-    for row in csv_utils.read_csv_body(args.wsd):
-        ut = row['Accession Number']
-        ut_sources[ut].wsd = True
+def read_csv_ut_if_some(path):
+    if path is not None:
+        print('Reading ', path)
+        for row in csv_utils.read_csv_body(path):
+            ut = row['Accession Number']
+            yield ut
+    else:
+        return []
 
-if args.wsd_q1 is not None:
-    print('Reading ', args.wsd_q1)
-    for row in csv_utils.read_csv_body(args.wsd_q1):
-        ut = row['Accession Number']
-        ut_sources[ut].wsd_q1 = True
+for ut in read_csv_ut_if_some(args.wsd):
+    ut_sources[ut].wsd = True
+for ut in read_csv_ut_if_some(args.wsd_q1):
+    ut_sources[ut].wsd_q1 = True
+for ut in read_csv_ut_if_some(args.wsd_q2):
+    ut_sources[ut].wsd_q2 = True
+for ut in read_csv_ut_if_some(args.wsd_q3):
+    ut_sources[ut].wsd_q3 = True
+for ut in read_csv_ut_if_some(args.wsd_q4):
+    ut_sources[ut].wsd_q4 = True
 
-if args.wsd_q2 is not None:
-    print('Reading ', args.wsd_q2)
-    for row in csv_utils.read_csv_body(args.wsd_q2):
-        ut = row['Accession Number']
-        ut_sources[ut].wsd_q2 = True
+def get_quartile_name(sources: UtSource):
+    if sources.wsd_q1:
+        return 'Q1'
+    elif sources.wsd_q2:
+        return 'Q2'
+    elif sources.wsd_q3:
+        return 'Q3'
+    elif sources.wsd_q4:
+        return 'Q4'
+    elif sources.ris_ahci:
+        return 'AHCI'
+    else:
+        return 'n/a'
+
+def get_criteria_name(quartile: str):
+    if quartile == 'Q1' or quartile == 'Q2' or quartile == 'AHCI':
+        return 'Q1 Q2 AHCI'
+    else:
+        return 'Q3 Q4 n/a'
+
 
 # ->критерии отбора
 for ut, sources in ut_sources.items():
+    quartile = get_quartile_name(sources)
+    criteria_name = get_criteria_name(quartile)
+
     sel_criteria.append([
         ut,
-        'RIS' if sources.ris else None,
-        'RIS_AHCI' if sources.ris_ahci else None,
-        'WSD' if sources.wsd else None,
-        'WSD_Q1' if sources.wsd_q1 else None,
-        'WSD_Q2' if sources.wsd_q2 else None
+        criteria_name,
+        None,
+        quartile
     ])
 
 def update_table(sheet, name):
