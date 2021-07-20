@@ -4,6 +4,7 @@ import openpyxl
 from openpyxl.worksheet.table import Table
 from openpyxl.utils import get_column_letter
 from collections import defaultdict
+import pandas as pd
 import reader
 import c1_parser
 from name_variant import NameVariants, NameVariantsDict
@@ -35,7 +36,6 @@ class UtSource:
     def __init__(self):
         self.ris = False
         self.ris_ahci = False
-        self.wsd = False
         self.wsd_q1 = False
         self.wsd_q2 = False
         self.wsd_q3 = False
@@ -49,14 +49,7 @@ if args.ris_ahci is not None:
             ut = record['UT'][0]
             ut_sources[ut].ris_ahci = True
 
-if args.ris is not None:
-    for ris_file in args.ris.iterdir():
-        print('Reading ', ris_file)
-        for record in reader.read(ris_file):
-            ut = record['UT'][0]
-            ut_sources[ut].ris = True
-
-def read_csv_ut_if_some(path):
+def each_ut_from_csv(path):
     if path is not None:
         print('Reading ', path)
         for row in csv_utils.read_csv_body(path):
@@ -65,16 +58,90 @@ def read_csv_ut_if_some(path):
     else:
         return []
 
-for ut in read_csv_ut_if_some(args.wsd):
-    ut_sources[ut].wsd = True
-for ut in read_csv_ut_if_some(args.wsd_q1):
+for ut in each_ut_from_csv(args.wsd_q1):
     ut_sources[ut].wsd_q1 = True
-for ut in read_csv_ut_if_some(args.wsd_q2):
+for ut in each_ut_from_csv(args.wsd_q2):
     ut_sources[ut].wsd_q2 = True
-for ut in read_csv_ut_if_some(args.wsd_q3):
+for ut in each_ut_from_csv(args.wsd_q3):
     ut_sources[ut].wsd_q3 = True
-for ut in read_csv_ut_if_some(args.wsd_q4):
+for ut in each_ut_from_csv(args.wsd_q4):
     ut_sources[ut].wsd_q4 = True
+
+# <-name_variant
+name_dict = None
+if args.name_variants is not None:
+    name_dict = NameVariantsDict(NameVariants.from_file(args.name_variants))
+
+ris_df = pd.DataFrame(columns=['UT', 'Type', 'Source', 'Year'])
+
+if args.ris is not None:
+    row = 0
+    for ris_file in args.ris.iterdir():
+        print('Reading ', ris_file)
+        for record in reader.read(ris_file):
+            ut = record['UT'][0]
+            ut_sources[ut].ris = True
+
+            document_type = record['DT'][0]
+            document_source = record['PT'][0]
+            year = None
+            if 'PY' in record:
+                year = record['PY'][0]
+
+            ris_df.loc[row] = [ut, document_type, document_source, year]
+            row += 1
+
+            au_list = record['AF']
+            count_au = len(au_list)
+            c1_dict = c1_parser.parse(record['C1'])
+
+            for au in au_list: # каждый автор из AF
+                c1_affiliated_unis = c1_dict.get(au, [])
+                count_au_aff = len(c1_affiliated_unis)
+
+                for aff in c1_affiliated_unis: # каждый университет из C1, связанный с автором
+                    org = None
+                    if name_dict is not None:
+                        org = name_dict.find_and_remember(aff)
+
+                    fractions.append([
+                        ut,
+                        au,
+                        count_au,
+                        count_au_aff,
+                        aff,
+                        org,
+                        '=1/фракции[count_au]/фракции[count_au_aff]'
+                    ]) # ->фракции
+
+#->Варианты названий
+if name_dict is not None:
+    for aff, uni in name_dict.get_items():
+        name_variants_sheet.append([aff, uni])
+
+wsd_df = pd.DataFrame(columns=['UT', 'Type', 'Year'])
+if args.wsd is not None:
+    print('Reading ', args.wsd)
+    for i, row in enumerate(csv_utils.read_csv_body(args.wsd)):
+        ut = row['Accession Number']
+        document_type = row['Document Type']
+        year = row['Publication Date']
+        wsd_df.loc[i] = [ut, document_type, year]
+
+publications_df = ris_df.merge(wsd_df, how='outer', on='UT', suffixes=('_ris', '_wsd'))
+publications_df['Year_wsd'] = publications_df['Year_wsd'] \
+    .combine_first(publications_df['Year_ris'])
+
+for _, row in publications_df.iterrows():
+    publications.append([
+        row['UT'],
+        row['Year_wsd'],
+        row['Type_ris'],
+        row['Type_wsd'],
+        row['Source'],
+        '=IFERROR(VLOOKUP(публикации[UT],критерий_отбора[],2,0),"")',
+        '=VLOOKUP(публикации[UT],фракции_сводная[],2,0)'
+    ])
 
 def get_quartile_name(sources: UtSource):
     if sources.wsd_q1:
@@ -96,7 +163,6 @@ def get_criteria_name(quartile: str):
     else:
         return 'Q3 Q4 n/a'
 
-
 # ->критерии отбора
 for ut, sources in ut_sources.items():
     quartile = get_quartile_name(sources)
@@ -114,4 +180,7 @@ def update_table(sheet, name):
     table.ref = "A1:" + get_column_letter(sheet.max_column) + str(sheet.max_row)
 
 update_table(sel_criteria, 'критерий_отбора')
+update_table(fractions, 'фракции')
+update_table(publications, 'публикации')
+update_table(name_variants_sheet, 'варианты_названий_университета')
 wb.save(args.output)
