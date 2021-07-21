@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 from pathlib import Path
 import openpyxl
-from openpyxl.worksheet.table import Table
 from openpyxl.utils import get_column_letter
 from collections import defaultdict
 import pandas as pd
