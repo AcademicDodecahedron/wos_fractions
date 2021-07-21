@@ -2,8 +2,8 @@ from argparse import ArgumentParser
 from pathlib import Path
 import openpyxl
 from openpyxl.utils import get_column_letter
+from typing import NamedTuple, Any, Optional
 from collections import defaultdict
-import pandas as pd
 import reader
 import c1_parser
 from name_variant import NameVariants, NameVariantsDict
@@ -32,18 +32,69 @@ fractions = wb['фракции']
 name_variants_sheet = wb['Варианты названий университета']
 
 ##
+FORMULA_PUBLICATIONS_CRITERIA = '=IFERROR(VLOOKUP(публикации[UT],критерий_отбора[],2,0),"")'
+FORMULA_PUBLICATIONS_FRACTION = '=VLOOKUP(публикации[UT],фракции_сводная[],2,0)'
+FORMULA_FRACTION_FRACTION = '=1/фракции[count_au]/фракции[count_au_aff]'
+##
 # в каких файлах есть этот UT
+class YearRow(NamedTuple):
+    year: Any
+
+class WsdRow(NamedTuple):
+    year: Any
+    document_type: Any
+
 class UtSource:
     def __init__(self):
-        self.ris = False
-        self.ris_ahci = False
-        self.wsd_q1 = False
-        self.wsd_q2 = False
-        self.wsd_q3 = False
-        self.wsd_q4 = False
+        self.ris: Optional[YearRow] = None
+        self.ris_ahci: Optional[YearRow] = None
+        self.wsd: Optional[WsdRow] = None
+        self.wsd_q1: Optional[YearRow] = None
+        self.wsd_q2: Optional[YearRow] = None
+        self.wsd_q3: Optional[YearRow] = None
+        self.wsd_q4: Optional[YearRow] = None
+
+    def get_priority_year(self):
+        if self.wsd_q1 is not None and self.wsd_q1.year is not None:
+            return self.wsd_q1.year
+        elif self.wsd_q2 is not None and self.wsd_q2.year is not None:
+            return self.wsd_q2.year
+        elif self.wsd_q3 is not None and self.wsd_q3.year is not None:
+            return self.wsd_q3.year
+        elif self.wsd_q4 is not None and self.wsd_q4.year is not None:
+            return self.wsd_q4.year
+        elif self.wsd is not None and self.wsd.year is not None:
+            return self.wsd.year
+        elif self.ris is not None and self.ris.year is not None:
+            return self.ris.year
+        elif self.ris_ahci is not None and self.ris_ahci.year is not None:
+            return self.ris_ahci.year
+
+    def get_document_type_wsd(self):
+        if self.wsd is not None:
+            return self.wsd.document_type
+
+    def get_quartile(self):
+        if self.wsd_q1 is not None:
+            return 'Q1'
+        elif self.wsd_q2 is not None:
+            return 'Q2'
+        elif self.wsd_q3 is not None:
+            return 'Q3'
+        elif self.wsd_q4 is not None:
+            return 'Q4'
+        elif self.ris_ahci is not None:
+            return 'AHCI'
+        else:
+            return 'n/a'
 
 ut_sources = defaultdict(UtSource)
 ##
+
+def try_get_first_line(dictionary: dict, key: str):
+    lines = dictionary.get(key, None)
+    if lines is not None:
+        return lines[0]
 
 # <-RIS_AHCI
 if args.ris_ahci is not None:
@@ -51,51 +102,69 @@ if args.ris_ahci is not None:
         print('Reading ', ahci_file)
         for record in reader.read(ahci_file):
             ut = record['UT'][0]
-            ut_sources[ut].ris_ahci = True #->источники
+            year = try_get_first_line(record, 'PY')
+            ut_sources[ut].ris_ahci = YearRow(year) #->источники
 
-def each_ut_from_csv(path):
+def each_ut_and_year_from_csv(path):
     if path is not None:
         print('Reading ', path)
         for row in csv_utils.read_csv_body(path):
             ut = row['Accession Number']
-            yield ut
+            year = row['Publication Date']
+            yield ut, year
     else:
         return []
 
 # <-Web Science Of DocumentsQ*.csv
-for ut in each_ut_from_csv(args.wsd_q1):
-    ut_sources[ut].wsd_q1 = True #->источники
-for ut in each_ut_from_csv(args.wsd_q2):
-    ut_sources[ut].wsd_q2 = True #->источники
-for ut in each_ut_from_csv(args.wsd_q3):
-    ut_sources[ut].wsd_q3 = True #->источники
-for ut in each_ut_from_csv(args.wsd_q4):
-    ut_sources[ut].wsd_q4 = True #->источники
+for ut, year in each_ut_and_year_from_csv(args.wsd_q1):
+    ut_sources[ut].wsd_q1 = YearRow(year) #->источники
+for ut, year in each_ut_and_year_from_csv(args.wsd_q2):
+    ut_sources[ut].wsd_q2 = YearRow(year) #->источники
+for ut, year in each_ut_and_year_from_csv(args.wsd_q3):
+    ut_sources[ut].wsd_q3 = YearRow(year) #->источники
+for ut, year in each_ut_and_year_from_csv(args.wsd_q4):
+    ut_sources[ut].wsd_q4 = YearRow(year) #->источники
+
+wsd_ut_set = set()
+#<-Web Science Of Document.csv
+if args.wsd is not None:
+    print('Reading ', args.wsd)
+    for i, row in enumerate(csv_utils.read_csv_body(args.wsd)):
+        ut = row['Accession Number']
+        document_type = row['Document Type']
+        year = row['Publication Date']
+
+        wsd_ut_set.add(ut)
+        ut_sources[ut].wsd = WsdRow(year, document_type)
 
 # <-name_variant
 name_dict = None
 if args.name_variants is not None:
     name_dict = NameVariantsDict(NameVariants.from_file(args.name_variants))
 
-ris_df = pd.DataFrame(columns=['UT', 'Type', 'Source', 'Year'])
-
 # <-RIS
 if args.ris is not None:
-    row = 0
     for ris_file in args.ris.iterdir():
         print('Reading ', ris_file)
         for record in reader.read(ris_file):
             ut = record['UT'][0]
-            ut_sources[ut].ris = True
+            year = try_get_first_line(record, 'PY')
+            ut_source = ut_sources[ut]
+            ut_source.ris = YearRow(year)
+            wsd_ut_set.discard(ut)
 
             document_type = record['DT'][0]
             document_source = record['PT'][0]
-            year = None
-            if 'PY' in record:
-                year = record['PY'][0]
 
-            ris_df.loc[row] = [ut, document_type, document_source, year] #-> Сохранить в DataFrame
-            row += 1
+            publications.append([
+                ut,
+                ut_source.get_priority_year(),
+                document_type,
+                ut_source.get_document_type_wsd(),
+                document_source,
+                FORMULA_PUBLICATIONS_CRITERIA,
+                FORMULA_PUBLICATIONS_FRACTION
+            ]) #->публикации
 
             au_list = record['AF']
             count_au = len(au_list)
@@ -117,55 +186,26 @@ if args.ris is not None:
                         count_au_aff,
                         aff,
                         org,
-                        '=1/фракции[count_au]/фракции[count_au_aff]'
+                        FORMULA_FRACTION_FRACTION
                     ]) # ->фракции
+
+for ut in wsd_ut_set:
+    ut_source = ut_sources[ut]
+
+    publications.append([
+        ut,
+        ut_source.get_priority_year(),
+        None,
+        ut_source.get_document_type_wsd(),
+        None,
+        FORMULA_PUBLICATIONS_CRITERIA,
+        FORMULA_PUBLICATIONS_FRACTION
+    ]) #->публикации
 
 #<-словарь имен
 if name_dict is not None:
     for aff, uni in name_dict.get_items():
         name_variants_sheet.append([aff, uni]) #->Варианты названий университета
-
-wsd_df = pd.DataFrame(columns=['UT', 'Type', 'Year'])
-
-#<-Web Science Of Document.csv
-if args.wsd is not None:
-    print('Reading ', args.wsd)
-    for i, row in enumerate(csv_utils.read_csv_body(args.wsd)):
-        ut = row['Accession Number']
-        document_type = row['Document Type']
-        year = row['Publication Date']
-        wsd_df.loc[i] = [ut, document_type, year] #-> Сохранить в DataFrame
-
-# Объединить RIS и InCites
-publications_df = ris_df.merge(wsd_df, how='outer', on='UT', suffixes=('_ris', '_wsd'))
-publications_df['Year_wsd'] = publications_df['Year_wsd'] \
-    .combine_first(publications_df['Year_ris']) #type:ignore
-
-#<-DataFrame
-for _, row in publications_df.iterrows():
-    publications.append([
-        row['UT'],
-        row['Year_wsd'],
-        row['Type_ris'],
-        row['Type_wsd'],
-        row['Source'],
-        '=IFERROR(VLOOKUP(публикации[UT],критерий_отбора[],2,0),"")',
-        '=VLOOKUP(публикации[UT],фракции_сводная[],2,0)'
-    ]) #->публикации
-
-def get_quartile_name(sources: UtSource):
-    if sources.wsd_q1:
-        return 'Q1'
-    elif sources.wsd_q2:
-        return 'Q2'
-    elif sources.wsd_q3:
-        return 'Q3'
-    elif sources.wsd_q4:
-        return 'Q4'
-    elif sources.ris_ahci:
-        return 'AHCI'
-    else:
-        return 'n/a'
 
 def get_criteria_name(quartile: str):
     if quartile == 'Q1' or quartile == 'Q2' or quartile == 'AHCI':
@@ -175,7 +215,7 @@ def get_criteria_name(quartile: str):
 
 #<-источники ut
 for ut, sources in ut_sources.items():
-    quartile = get_quartile_name(sources)
+    quartile = sources.get_quartile()
     criteria_name = get_criteria_name(quartile)
 
     sel_criteria.append([
