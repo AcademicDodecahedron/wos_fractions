@@ -55,7 +55,9 @@ class UtSource:
         self.wsd_q4: Optional[YearRow] = None
 
     def get_priority_year(self):
-        if self.wsd_q1 is not None and self.wsd_q1.year is not None:
+        if self.ris_ahci is not None and self.ris_ahci.year is not None:
+            return self.ris_ahci.year
+        elif self.wsd_q1 is not None and self.wsd_q1.year is not None:
             return self.wsd_q1.year
         elif self.wsd_q2 is not None and self.wsd_q2.year is not None:
             return self.wsd_q2.year
@@ -67,8 +69,6 @@ class UtSource:
             return self.wsd.year
         elif self.ris is not None and self.ris.year is not None:
             return self.ris.year
-        elif self.ris_ahci is not None and self.ris_ahci.year is not None:
-            return self.ris_ahci.year
 
     def get_document_type_wsd(self):
         if self.wsd is not None:
