@@ -75,7 +75,9 @@ class UtSource:
             return self.wsd.document_type
 
     def get_quartile(self):
-        if self.wsd_q1 is not None:
+        if self.ris_ahci is not None:
+            return 'AHCI'
+        elif self.wsd_q1 is not None:
             return 'Q1'
         elif self.wsd_q2 is not None:
             return 'Q2'
@@ -83,8 +85,6 @@ class UtSource:
             return 'Q3'
         elif self.wsd_q4 is not None:
             return 'Q4'
-        elif self.ris_ahci is not None:
-            return 'AHCI'
         else:
             return 'n/a'
 
