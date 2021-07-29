@@ -7,14 +7,14 @@ class NameVariants:
     def __init__(self, lines: List[str]):
         self.main_name = lines[0]
 
-        lines = map(lambda x: x.lower(), lines)
+        lines = map(lambda x: x.lower(), lines) #type:ignore
         lines = sorted(lines, key=lambda x: len(x))
         self.lines = list(lines)
 
-    def find_main_name(self, name: str):
+    def find_matching_pattern(self, name: str):
         for line in self.lines:
             if name.lower().find(line) != -1:
-                return self.main_name
+                return line
         return None
 
     @staticmethod
@@ -31,16 +31,16 @@ class NameVariantsDict:
         self.name_variants = name_variants
         self.name_dict = {}
 
-    def find_and_remember(self, name: str):
+    def find_matching_pattern(self, name: str):
         if name in self.name_dict:
             return self.name_dict[name]
         else:
-            main_name = self.name_variants.find_main_name(name)
-            if main_name is None:
-                main_name = 'NoN'
-
-            self.name_dict[name] = main_name
-            return main_name
+            pattern = self.name_variants.find_matching_pattern(name)
+            self.name_dict[name] = pattern
+            return pattern
 
     def get_items(self):
         return self.name_dict.items()
+
+    def get_main_name(self):
+        return self.name_variants.main_name

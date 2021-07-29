@@ -20,7 +20,7 @@ def parse_args():
     argp.add_argument('--wsd_q2', type=Path, help='Web of Science DocumentsQ2.csv')
     argp.add_argument('--wsd_q3', type=Path, help='Web of Science DocumentsQ3.csv')
     argp.add_argument('--wsd_q4', type=Path, help='Web of Science DocumentsQ4.csv')
-    argp.add_argument('--name_variants', type=Path, help='name_variant.txt file')
+    argp.add_argument('--name_variants', required=True, type=Path, help='name_variant.txt file')
     argp.add_argument('-o', '--output', default='out.xlsx', help='Output .xlsx file')
     return argp.parse_args()
 args = parse_args()
@@ -31,9 +31,13 @@ publications = wb['публикации']
 fractions = wb['фракции']
 name_variants_sheet = wb['Варианты названий университета']
 
+# <-name_variant
+name_dict = NameVariantsDict(NameVariants.from_file(args.name_variants))
+main_name = name_dict.get_main_name()
+
 ##
 FORMULA_PUBLICATIONS_CRITERIA = '=IFERROR(VLOOKUP(публикации[UT],критерий_отбора[],2,0),"")'
-FORMULA_PUBLICATIONS_FRACTION = '=VLOOKUP(публикации[UT],фракции_сводная[],2,0)'
+FORMULA_PUBLICATIONS_FRACTION = f'=IFERROR(SUMIFS(фракции[фракции],фракции[org],"={main_name}",фракции[UT],"="&публикации[[#This Row],[UT]]),"")'
 FORMULA_FRACTION_FRACTION = '=1/фракции[count_au]/фракции[count_au_aff]'
 ##
 # в каких файлах есть этот UT
@@ -137,11 +141,6 @@ if args.wsd is not None:
         wsd_ut_set.add(ut)
         ut_sources[ut].wsd = WsdRow(year, document_type)
 
-# <-name_variant
-name_dict = None
-if args.name_variants is not None:
-    name_dict = NameVariantsDict(NameVariants.from_file(args.name_variants))
-
 # <-RIS
 if args.ris is not None:
     for ris_file in args.ris.iterdir():
@@ -175,9 +174,10 @@ if args.ris is not None:
                 count_au_aff = len(c1_affiliated_unis)
 
                 for aff in c1_affiliated_unis: # каждый университет из C1, связанный с автором
-                    org = None
-                    if name_dict is not None:
-                        org = name_dict.find_and_remember(aff)
+                    org = 'NoN'
+                    name_aff_variant = name_dict.find_matching_pattern(aff)
+                    if name_aff_variant is not None:
+                        org = main_name
 
                     fractions.append([
                         ut,
@@ -186,6 +186,7 @@ if args.ris is not None:
                         count_au_aff,
                         aff,
                         org,
+                        name_aff_variant,
                         FORMULA_FRACTION_FRACTION
                     ]) # ->фракции
 
@@ -203,9 +204,8 @@ for ut in wsd_ut_set:
     ]) #->публикации
 
 #<-словарь имен
-if name_dict is not None:
-    for aff, uni in name_dict.get_items():
-        name_variants_sheet.append([aff, uni]) #->Варианты названий университета
+for aff, _ in name_dict.get_items():
+    name_variants_sheet.append([aff, main_name]) #->Варианты названий университета
 
 def get_criteria_name(quartile: str):
     if quartile == 'Q1' or quartile == 'Q2' or quartile == 'AHCI':
