@@ -143,6 +143,22 @@ if args.wsd is not None:
         wsd_ut_set.add(ut)
         ut_sources[ut].wsd = WsdRow(year, document_type)
 
+def append_fractions(ut, au, count_au, count_au_aff, aff):
+    org = 'NoN'
+    name_aff_variant = name_dict.find_matching_pattern(aff)
+    if name_aff_variant is not None:
+        org = main_name
+    fractions.append([
+        ut,
+        au,
+        count_au,
+        count_au_aff,
+        aff,
+        org,
+        name_aff_variant,
+        FORMULA_FRACTION_FRACTION
+    ]) # ->фракции
+
 # <-RIS
 if args.ris is not None:
     for ris_file in args.ris.iterdir():
@@ -169,28 +185,23 @@ if args.ris is not None:
 
             au_list = record['AF']
             count_au = len(au_list)
-            c1_dict = c1_parser.parse(record['C1'])
+            c1_data = c1_parser.parse(record['C1'])
 
-            for au in au_list: # каждый автор из AF
-                c1_affiliated_unis = c1_dict.get(au, [])
-                count_au_aff = len(c1_affiliated_unis)
+            if type(c1_data) == dict:
+                # В C1 данный вида [Автор] Университет
+                for au in au_list: # каждый автор из AF
+                    c1_affiliated_unis = c1_data.get(au, []) #type:ignore
+                    count_au_aff = len(c1_affiliated_unis)
 
-                for aff in c1_affiliated_unis: # каждый университет из C1, связанный с автором
-                    org = 'NoN'
-                    name_aff_variant = name_dict.find_matching_pattern(aff)
-                    if name_aff_variant is not None:
-                        org = main_name
+                    for aff in c1_affiliated_unis: # каждый университет из C1, связанный с автором
+                        append_fractions(ut, au, count_au, count_au_aff, aff)
 
-                    fractions.append([
-                        ut,
-                        au,
-                        count_au,
-                        count_au_aff,
-                        aff,
-                        org,
-                        name_aff_variant,
-                        FORMULA_FRACTION_FRACTION
-                    ]) # ->фракции
+            elif len(au_list) == 1:
+                # В C1 одна строка без указания автора, значит автор в AF должен быть один
+                append_fractions(ut, au_list[0], count_au, 1, c1_data)
+            else:
+                print('C1 is a string:', c1_data, 'expected exactly 1 author, got', au_list)
+                exit(1)
 
 for ut in wsd_ut_set:
     ut_source = ut_sources[ut]
