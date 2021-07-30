@@ -1,3 +1,5 @@
+# (c) E-kvadrat Consulting & Media, 2021
+
 from argparse import ArgumentParser
 from pathlib import Path
 import openpyxl
