@@ -118,7 +118,7 @@ joined_df = joined_df.merge(wsd_df.rename(columns={'DT': 'DT_wsd', 'PY': 'PY_wsd
 
 for q in range(0, 4):
     suffix = f'_wsdq{q+1}'
-    qdf = wsdq_dfs[q].rename(columns={'PY': 'PY'+suffix})
+    qdf = wsdq_dfs[q].rename(columns={'PY': 'PY'+suffix, 'DT': 'DT'+suffix})
     qdf['SRC'+suffix] = f'WSD_Q{q+1}'
 
     joined_df = joined_df.merge(qdf, how='left', on='UT')
@@ -127,7 +127,7 @@ joined_df = joined_df[~joined_df['UT'].duplicated()] #type:ignore
 ##
 
 # Объединяет поля с учетов приоритетов
-# TODO: проверить приоритет, объединить Document Type InCites
+# TODO: проверить приоритет
 
 joined_df['PY'] = joined_df['PY_ahci'] \
     .combine_first(joined_df['PY_wsdq1']) \
@@ -148,6 +148,13 @@ joined_df['SRC'] = joined_df['SRC_ahci'] \
 joined_df['AU'] = joined_df['AU_ahci'].combine_first(joined_df['AU_ris']) #type:ignore
 joined_df['C1'] = joined_df['C1_ahci'].combine_first(joined_df['C1_ris']) #type:ignore
 joined_df['PT'] = joined_df['PT_ahci'].combine_first(joined_df['PT_ris']) #type:ignore
+
+joined_df['DT'] = joined_df['DT_ahci'].combine_first(joined_df['DT_ris']) #type:ignore
+joined_df['DT InCites'] = joined_df['DT_wsdq1'] \
+    .combine_first(joined_df['DT_wsdq2']) \
+    .combine_first(joined_df['DT_wsdq3']) \
+    .combine_first(joined_df['DT_wsdq4']) \
+    .combine_first(joined_df['DT_wsd'])
 ##
 
 wb = openpyxl.load_workbook(args.template)
@@ -211,9 +218,9 @@ def unwrap_nan(value, default):
 for _, row in joined_df.iterrows():
     ut = row['UT']
     year = row['PY']
-    document_type = row['DT_ris']
+    document_type = row['DT']
     document_source = row['PT']
-    document_type_wsd = row['DT_wsd']
+    document_type_wsd = row['DT InCites']
 
     quartile = get_quartile(row['SRC'])
     criteria_name = get_criteria_name(quartile)
