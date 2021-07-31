@@ -158,7 +158,6 @@ joined_df['DT InCites'] = joined_df['DT_wsdq1'] \
 ##
 
 wb = openpyxl.load_workbook(args.template)
-sel_criteria = wb['критерийотбора']
 publications = wb['публикации']
 fractions = wb['фракции']
 name_variants_sheet = wb['Варианты названий университета']
@@ -232,7 +231,9 @@ for _, row in joined_df.iterrows():
         document_type_wsd,
         document_source,
         criteria_name,
-        FORMULA_PUBLICATIONS_FRACTION
+        FORMULA_PUBLICATIONS_FRACTION,
+        None,
+        quartile
     ]) #->публикации
 
     au_list = unwrap_nan(row['AU'], list)
@@ -252,13 +253,6 @@ for _, row in joined_df.iterrows():
         for au in au_list:
             append_fractions(ut, au, count_au, 1, c1_data)
 
-    sel_criteria.append([
-        ut,
-        criteria_name,
-        None,
-        quartile
-    ]) #-> критерийотбора
-
 for aff, _ in name_dict.get_items():
     name_variants_sheet.append([aff, main_name]) #->Варианты названий университета
 
@@ -266,7 +260,6 @@ def update_table(sheet, name):
     table = sheet.tables[name]
     table.ref = "A1:" + get_column_letter(sheet.max_column) + str(sheet.max_row)
 
-update_table(sel_criteria, 'критерий_отбора')
 update_table(fractions, 'фракции')
 update_table(publications, 'публикации')
 update_table(name_variants_sheet, 'варианты_названий_университета')
