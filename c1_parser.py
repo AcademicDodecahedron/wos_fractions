@@ -1,47 +1,79 @@
 # (c) E-kvadrat Consulting & Media, 2021
 
 import re
-from typing import Union
+from typing import Union, NamedTuple, Optional
 from collections import defaultdict
 
 ##
 
-def add_aff_to_dict(authors, uni, c1_dict: defaultdict):
-    if authors is not None:
-        for author in set(authors.split('; ')):
-            c1_dict[author].append(uni)
+# Один блок вида [Автор; Автор] Университет, либо просто Университет
+# может занимать несколько строк
+class C1Block(NamedTuple):
+    authors: Optional[set]
+    uni: str
+    length: int
+
+C1_REGEX = re.compile(r'^\[(.+)\] (.+)')
+def parse_next_block(lines):
+    authors_text = None
+    uni_text = None
+    length = 1
+
+    # Проверяем есть ли авторы на первой строке
+    if lines[0].startswith('['):
+        match = C1_REGEX.match(lines[0])
+        assert match, f'Unexpected line in C1: {lines[0]}'
+
+        authors_text = match.group(1)
+        uni_text = match.group(2)
+    else:
+        uni_text = lines[0]
+
+    # Остальные строки до начала нового блока
+    # присоединяем через пробел
+    for line in lines[1:]:
+        if line.startswith('['):
+            break
+        uni_text += ' ' + line
+        length += 1
+
+    authors_split = set(authors_text.split('; ')) \
+        if authors_text is not None else None
+
+    return C1Block(
+        authors=authors_split,
+        uni=uni_text,
+        length=length
+    )
 
 ##
 
-C1_REGEX = re.compile(r'^\[(.+)\] (.+)')
+def add_block_to_dict(block: C1Block, c1_dict: defaultdict):
+    if block.authors:
+        for author in block.authors:
+            c1_dict[author].append(block.uni)
+
+##
+
 def parse(lines) -> Union[dict, str]:
     if len(lines) == 0:
         return {}
 
-    ## Нет указания автора
-    #if not lines[0].startswith('['):
-    #    single_uni = lines[0]
-    #    for line in lines[1:]:
-    #        assert not line.startswith('['), f'Expected no authors in C1, got {line}'
-    #        single_uni += ' ' + line
-    #    return single_uni
-
-
     c1_dict = defaultdict(list)
-    current_authors = None
-    current_uni = ''
 
-    for line in lines:
-        if line.startswith('['):
-            add_aff_to_dict(current_authors, current_uni, c1_dict)
+    first_block = parse_next_block(lines)
+    if first_block.authors is None:
+        # Если в первом блоке нет авторов, и это единственный блок - вернуть строку с названием университета
+        # Если в первом блоке нет авторов, но есть в последующих блоках - игнорировать первый блок
+        if first_block.length == len(lines):
+            return first_block.uni
+    else:
+        add_block_to_dict(first_block, c1_dict)
 
-            match = C1_REGEX.match(line)
-            assert match, f'Failed to parse C1 line {line}'
+    current_line = first_block.length
+    while current_line < len(lines):
+        next_block = parse_next_block(lines[current_line:])
+        add_block_to_dict(next_block, c1_dict)
+        current_line += next_block.length
 
-            current_authors = match.group(1)
-            current_uni = match.group(2)
-        else:
-            current_uni = ' '.join([current_uni, line])
-
-    add_aff_to_dict(current_authors, current_uni, c1_dict)
     return dict(c1_dict)

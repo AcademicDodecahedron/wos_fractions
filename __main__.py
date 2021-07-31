@@ -241,12 +241,9 @@ for _, row in joined_df.iterrows():
             for aff in c1_affiliated_unis: # каждый университет из C1, связанный с автором
                 append_fractions(ut, au, count_au, count_au_aff, aff)
 
-    #TODO: другие редкие случаи с C1
-    elif len(au_list) == 1:
-        # В C1 одна строка без указания автора, значит автор в AF должен быть один
-        append_fractions(ut, au_list[0], count_au, 1, c1_data)
     else:
-        print('C1 is a string:', c1_data, 'expected exactly 1 author, got', au_list)
+        for au in au_list:
+            append_fractions(ut, au, count_au, 1, c1_data)
 
     sel_criteria.append([
         ut,
