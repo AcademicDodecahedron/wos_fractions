@@ -10,3 +10,6 @@ python extract_aff_wos/ WoS_template.xlsx \
        --wsd_q4 'Web of Science DocumentsQ4.csv' \
        --name_variants name_variant.txt \
        -o out.xlsx
+```
+
+Зависимости: `pandas`, `openpyxl`
