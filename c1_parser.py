@@ -18,13 +18,13 @@ def parse(lines) -> Union[dict, str]:
     if len(lines) == 0:
         return {}
 
-    # Нет указания автора
-    if not lines[0].startswith('['):
-        single_uni = lines[0]
-        for line in lines[1:]:
-            assert not line.startswith('['), f'Expected not authors in C1, got {line}'
-            single_uni += ' ' + line
-        return single_uni
+    ## Нет указания автора
+    #if not lines[0].startswith('['):
+    #    single_uni = lines[0]
+    #    for line in lines[1:]:
+    #        assert not line.startswith('['), f'Expected no authors in C1, got {line}'
+    #        single_uni += ' ' + line
+    #    return single_uni
 
 
     c1_dict = defaultdict(list)
