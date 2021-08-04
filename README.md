@@ -1,6 +1,6 @@
 Пример использования:
 ```
-python extract_aff_wos/ WoS_template.xlsx \
+python extract_aff_wos/ WoS_template_v4.xlsx \
        --ris_ahci RIS_AHCI/ \
        --ris RIS/ \
        --wsd 'Web of Science Documents.csv' \
