@@ -3,8 +3,6 @@
 from pathlib import Path
 from typing import List
 
-##
-
 
 class NameVariants:
     def __init__(self, lines: List[str]):
@@ -26,9 +24,6 @@ class NameVariants:
             lines = file.readlines()
             lines = map(lambda x: x.rstrip(), lines)
             return NameVariants(list(lines))
-
-
-##
 
 
 class NameVariantsDict:

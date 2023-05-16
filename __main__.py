@@ -11,7 +11,6 @@ from name_variant import NameVariants, NameVariantsDict
 import csv_utils
 
 
-##
 def parse_args():
     argp = ArgumentParser()
     argp.add_argument("template", type=Path, help=".xlsx template file")
@@ -32,14 +31,11 @@ def parse_args():
 args = parse_args()
 
 
-##
 def try_get_first_line(dictionary: dict, key: str):
     lines = dictionary.get(key, None)
     if lines is not None:
         return lines[0]
 
-
-##
 
 # <- RIS/
 ris_df = pd.DataFrame(columns=["UT", "PY", "DT", "PT", "AU", "C1"])
@@ -59,7 +55,6 @@ if args.ris is not None:
                 ignore_index=True,
             )
 
-##
 
 # <- RIS_AHCI/
 ahci_df = pd.DataFrame(columns=["UT", "PY", "DT", "PT", "AU", "C1"])
@@ -79,7 +74,6 @@ if args.ris_ahci is not None:
                 ignore_index=True,
             )
 
-##
 
 # <- Web Science Of Documents.csv
 wsd_df = pd.DataFrame(columns=["UT", "PY", "DT"])
@@ -95,7 +89,6 @@ if args.wsd is not None:
             ignore_index=True,
         )
 
-##
 
 # <- Web Science Of Documents Q*.csv
 wsdq_dfs = []
@@ -119,11 +112,9 @@ for wsdq_path in [
             )
     wsdq_dfs.append(qdf)
 
-##
 # <-name_variant
 name_dict = NameVariantsDict(NameVariants.from_file(args.name_variants))
 main_name = name_dict.get_main_name()
-##
 
 # Объединяем источники:
 # OUTER JOIN ris, ahci, wsd
@@ -146,7 +137,6 @@ for q in range(0, 4):
     joined_df = joined_df.merge(qdf, how="left", on="UT")
 
 joined_df = joined_df[~joined_df["UT"].duplicated()]  # type:ignore
-##
 
 # Объединяет поля с учетов приоритетов
 # TODO: проверить приоритет
@@ -183,17 +173,14 @@ joined_df["DT InCites"] = (
     .combine_first(joined_df["DT_wsdq4"])
     .combine_first(joined_df["DT_wsd"])
 )
-##
 
 wb = openpyxl.load_workbook(args.template)
 publications = wb["публикации"]
 fractions = wb["фракции"]
 name_variants_sheet = wb["Варианты названий университета"]
 
-##
 FORMULA_PUBLICATIONS_FRACTION = f'=IFERROR(SUMIFS(фракции[фракции],фракции[org],"={main_name}",фракции[UT],"="&публикации[[#This Row],[UT]]),"")'
 FORMULA_FRACTION_FRACTION = "=1/фракции[count_au]/фракции[count_au_aff]"
-##
 
 
 # Добавить аффиляцию в таблицу фракций и в словарь имен

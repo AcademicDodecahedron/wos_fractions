@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-##
-
 
 def read(path: Path):
     with path.open(mode="r", encoding="utf-8-sig") as file:

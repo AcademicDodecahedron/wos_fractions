@@ -4,8 +4,6 @@ import re
 from typing import Union, NamedTuple, Optional
 from collections import defaultdict
 
-##
-
 
 # Один блок вида [Автор; Автор] Университет, либо просто Университет
 # может занимать несколько строк
@@ -46,16 +44,10 @@ def parse_next_block(lines):
     return C1Block(authors=authors_split, uni=uni_text, length=length)
 
 
-##
-
-
 def add_block_to_dict(block: C1Block, c1_dict: defaultdict):
     if block.authors:
         for author in block.authors:
             c1_dict[author].append(block.uni)
-
-
-##
 
 
 def parse(lines) -> Union[dict, str]:

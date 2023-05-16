@@ -4,8 +4,6 @@ from pathlib import Path
 from io import StringIO
 import csv
 
-##
-
 
 def read_csv_body(path: Path):
     body_str = ""
