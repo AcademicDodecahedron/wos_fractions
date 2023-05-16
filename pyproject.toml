@@ -7,7 +7,7 @@ authors = [
 ]
 dependencies = [
     "openpyxl>=3.1.2",
-    "pandas==1.5.3",
+    "pandas>=2.0.1",
 ]
 requires-python = ">=3.10"
 license = {text = "MIT"}

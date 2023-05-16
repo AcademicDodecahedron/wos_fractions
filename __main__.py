@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import Optional
 import openpyxl
 from openpyxl.utils import get_column_letter
 import pandas as pd
@@ -37,82 +38,53 @@ def try_get_first_line(dictionary: dict, key: str):
         return lines[0]
 
 
-# <- RIS/
-ris_df = pd.DataFrame(columns=["UT", "PY", "DT", "PT", "AU", "C1"])
-if args.ris is not None:
-    for ris_file in args.ris.iterdir():
-        print("Reading ", ris_file)
-        for record in reader.read(ris_file):
-            ris_df = ris_df.append(
-                {
-                    "UT": record["UT"][0],
-                    "PY": try_get_first_line(record, "PY"),
-                    "DT": try_get_first_line(record, "DT"),
-                    "PT": try_get_first_line(record, "PT"),
-                    "AU": record["AF"],
-                    "C1": c1_parser.parse(record["C1"]),
-                },
-                ignore_index=True,
-            )
+def try_load_ris(path: Optional[Path]):
+    df_records = []
+    if path:
+        for ris_file in path.iterdir():
+            print("Reading ", ris_file)
+            for ris_record in reader.read(ris_file):
+                df_records.append(
+                    {
+                        "UT": ris_record["UT"][0],
+                        "PY": try_get_first_line(ris_record, "PY"),
+                        "DT": try_get_first_line(ris_record, "DT"),
+                        "PT": try_get_first_line(ris_record, "PT"),
+                        "AU": ris_record["AF"],
+                        "C1": c1_parser.parse(ris_record["C1"]),
+                    },
+                )
+    return pd.DataFrame.from_records(
+        df_records, columns=["UT", "PY", "DT", "PT", "AU", "C1"]
+    )
 
 
-# <- RIS_AHCI/
-ahci_df = pd.DataFrame(columns=["UT", "PY", "DT", "PT", "AU", "C1"])
-if args.ris_ahci is not None:
-    for ahci_file in args.ris_ahci.iterdir():
-        print("Reading ", ahci_file)
-        for record in reader.read(ahci_file):
-            ahci_df = ahci_df.append(
-                {
-                    "UT": record["UT"][0],
-                    "PY": try_get_first_line(record, "PY"),
-                    "DT": try_get_first_line(record, "DT"),
-                    "PT": try_get_first_line(record, "PT"),
-                    "AU": record["AF"],
-                    "C1": c1_parser.parse(record["C1"]),
-                },
-                ignore_index=True,
-            )
+ris_df = try_load_ris(args.ris)
+ahci_df = try_load_ris(args.ris_ahci)
 
 
-# <- Web Science Of Documents.csv
-wsd_df = pd.DataFrame(columns=["UT", "PY", "DT"])
-if args.wsd is not None:
-    print("Reading ", args.wsd)
-    for row in csv_utils.read_csv_body(args.wsd):
-        wsd_df = wsd_df.append(
-            {
-                "UT": row["Accession Number"],
-                "DT": row["Document Type"],
-                "PY": row["Publication Date"],
-            },
-            ignore_index=True,
-        )
-
-
-# <- Web Science Of Documents Q*.csv
-wsdq_dfs = []
-for wsdq_path in [
-    args.wsd_q1,
-    args.wsd_q2,
-    args.wsd_q3,
-    args.wsd_q4,
-]:
-    qdf = pd.DataFrame(columns=["UT", "PY"])
-    if wsdq_path is not None:
-        print("Reading ", wsdq_path)
-        for row in csv_utils.read_csv_body(wsdq_path):
-            qdf = qdf.append(
+def try_load_wsd(path: Optional[Path]):
+    wsd_records = []
+    if path:
+        for row in csv_utils.read_csv_body(args.wsd):
+            wsd_records.append(
                 {
                     "UT": row["Accession Number"],
                     "DT": row["Document Type"],
                     "PY": row["Publication Date"],
                 },
-                ignore_index=True,
             )
-    wsdq_dfs.append(qdf)
+    return pd.DataFrame.from_records(wsd_records, columns=["UT", "PY", "DT"])
 
-# <-name_variant
+
+wsd_df = try_load_wsd(args.wsd)
+wsdq_dfs = [
+    try_load_wsd(args.wsd_q1),
+    try_load_wsd(args.wsd_q2),
+    try_load_wsd(args.wsd_q3),
+    try_load_wsd(args.wsd_q4),
+]
+
 name_dict = NameVariantsDict(NameVariants.from_file(args.name_variants))
 main_name = name_dict.get_main_name()
 
