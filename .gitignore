@@ -1,3 +1,6 @@
 *.pyc
 fake_args.py
 .pdm-python
+
+data/
+out.xlsx
