@@ -25,4 +25,6 @@ python wos_fractions_main/ WoS_template_v4.xlsx \
        -o out.xlsx
 ```
 
-Зависимости: `pandas`, `openpyxl`
+Все аргументы кроме `--name_variants` являются опциональными
+
+Зависимости: см. [pyproject.toml](pyproject.toml)
