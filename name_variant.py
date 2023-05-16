@@ -5,11 +5,12 @@ from typing import List
 
 ##
 
+
 class NameVariants:
     def __init__(self, lines: List[str]):
         self.main_name = lines[0]
 
-        lines = map(lambda x: x.lower(), lines) #type:ignore
+        lines = map(lambda x: x.lower(), lines)  # type:ignore
         lines = sorted(lines, key=lambda x: len(x))
         self.lines = list(lines)
 
@@ -21,12 +22,14 @@ class NameVariants:
 
     @staticmethod
     def from_file(path: Path):
-        with path.open('r', encoding='utf-8-sig') as file:
+        with path.open("r", encoding="utf-8-sig") as file:
             lines = file.readlines()
             lines = map(lambda x: x.rstrip(), lines)
             return NameVariants(list(lines))
 
+
 ##
+
 
 class NameVariantsDict:
     def __init__(self, name_variants: NameVariants):

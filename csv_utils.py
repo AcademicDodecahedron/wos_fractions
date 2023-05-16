@@ -6,11 +6,12 @@ import csv
 
 ##
 
+
 def read_csv_body(path: Path):
-    body_str = ''
-    with path.open(mode='r', encoding='utf-8-sig') as file:
+    body_str = ""
+    with path.open(mode="r", encoding="utf-8-sig") as file:
         for line in file:
-            if line == '\n':
+            if line == "\n":
                 break
             body_str += line
 
