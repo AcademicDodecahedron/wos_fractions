@@ -1,2 +1,3 @@
 *.pyc
 fake_args.py
+.pdm-python
