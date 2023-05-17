@@ -1,4 +1,4 @@
-## Скрипт для расчёта исходных данных для показателя Р1(с1) и Р1(с2) программы ПРИОРИТЕТ 2020
+## Скрипт для фракционного расчёта по данным  WoS CC и исходных данных для показателя Р1(с1) и Р1(с2) программы ПРИОРИТЕТ 2020
 
 (с) Интеграция и Консалтинг 
 
@@ -6,25 +6,31 @@
 
 
 
-Пример использования Windows:
+### Запуск:
 ```
-python wos_fractions_main/ WoS_template_v4.xlsx --ris_ahci RIS_AHCI/ --ris RIS/ --wsd "Web of Science Documents.csv" --wsd_q1 "Web of Science DocumentsQ1.csv" --wsd_q2 "Web of Science DocumentsQ2.csv" --wsd_q3 "Web of Science DocumentsQ3.csv" --wsd_q4 "Web of Science DocumentsQ4.csv" --name_variants name_variant.txt -o out.xlsx
+python __main__.py <template> <...args>
+```
+где `<template>` - файл шаблона, например `WoS_template_v4.xlsx`
+
+**Обязательные данные:**
+- `--name_variants name_variant.txt` - Альтернативные названия университета, пример:
+```
+Sechenov First Moscow State Medical University
+1 MOSCOW MED STATE UNIV IM SECHENOV
+1M SECHENOV FIRST MOSCOW STATE MED UNIV
+1ST MOSCOW MED ACAD
 ```
 
- linux:
-```
-python wos_fractions_main/ WoS_template_v4.xlsx \
-       --ris_ahci RIS_AHCI/ \
-       --ris RIS/ \
-       --wsd 'Web of Science Documents.csv' \
-       --wsd_q1 'Web of Science DocumentsQ1.csv' \
-       --wsd_q2 'Web of Science DocumentsQ2.csv' \
-       --wsd_q3 'Web of Science DocumentsQ3.csv' \
-       --wsd_q4 'Web of Science DocumentsQ4.csv' \
-       --name_variants name_variant.txt \
-       -o out.xlsx
-```
+**Небязательные данные:**
+- `--ris_ahci RIS_AHCI/`
+- `--ris RIS/`
+- `--wsd 'Web of Science Documents.csv'`
+- `--wsd_q1 'Web of Science DocumentsQ1.csv'`
+- `--wsd_q2 'Web of Science DocumentsQ2.csv'`
+- `--wsd_q3 'Web of Science DocumentsQ3.csv'`
+- `--wsd_q4 'Web of Science DocumentsQ4.csv'`
 
-Все аргументы кроме `--name_variants` являются опциональными
+**Результат:**
+- `-o result.xlsx` - Генерируемый excel-файл (по умолчанию - `out.xlsx`)
 
 Зависимости: см. [pyproject.toml](pyproject.toml)
